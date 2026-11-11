@@ -6,10 +6,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
-      "includeFiles": [
-        "server/node_modules/.prisma/**",
-        "server/node_modules/@prisma/client/**"
-      ]
+      "includeFiles": "server/node_modules/.prisma/**"
     }
   },
   "rewrites": [
