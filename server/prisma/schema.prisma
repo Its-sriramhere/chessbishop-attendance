@@ -1,0 +1,205 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  FACULTY
+}
+
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  TOURNAMENT
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(FACULTY)
+  facultyId    String?  @unique
+  faculty      Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  markedAttendance StudentAttendance[] @relation("AttendanceMarkedBy")
+  auditLogs        AuditLog[]
+}
+
+model Faculty {
+  id         String   @id @default(cuid())
+  employeeId String   @unique
+  name       String
+  email      String   @unique
+  phone      String?
+  joinedAt   DateTime @default(now())
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  user     User?
+  batches  Batch[]
+  sessions ClassSession[]
+}
+
+model Batch {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  level       Level    @default(BEGINNER)
+  days        String
+  startTime   String
+  endTime     String
+  durationMin Int      @default(60)
+  trainerId   String?
+  trainer     Faculty? @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  students BatchStudent[]
+  sessions ClassSession[]
+}
+
+model Student {
+  id           String        @id @default(cuid())
+  studentCode  String        @unique
+  name         String
+  dob          DateTime?
+  guardianName String?
+  contact      String?
+  email        String?
+  level        Level         @default(BEGINNER)
+  joiningDate  DateTime      @default(now())
+  status       StudentStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+
+  batches    BatchStudent[]
+  attendance StudentAttendance[]
+}
+
+model BatchStudent {
+  id         String    @id @default(cuid())
+  studentId  String
+  batchId    String
+  assignedAt DateTime  @default(now())
+  endedAt    DateTime?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  batch   Batch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([batchId])
+}
+
+model ChessTopic {
+  id               String  @id @default(cuid())
+  code             String  @unique
+  name             String
+  category         String
+  difficulty       Level   @default(BEGINNER)
+  description      String?
+  objectives       String?
+  estimatedMinutes Int?
+  parentId         String?
+
+  parent   ChessTopic?  @relation("TopicTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children ChessTopic[] @relation("TopicTree")
+
+  sessions   ClassSession[] @relation("SessionTopic")
+  subtopics  ClassSession[] @relation("SessionSubtopic")
+}
+
+model ClassSession {
+  id          String        @id @default(cuid())
+  batchId     String
+  trainerId   String
+  topicId     String?
+  subtopicId  String?
+  date        DateTime
+  startTime   String
+  endTime     String
+  description String?
+  objectives  String?
+  status      SessionStatus @default(SCHEDULED)
+  createdAt   DateTime      @default(now())
+
+  batch    Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  trainer  Faculty     @relation(fields: [trainerId], references: [id])
+  topic    ChessTopic? @relation("SessionTopic", fields: [topicId], references: [id], onDelete: SetNull)
+  subtopic ChessTopic? @relation("SessionSubtopic", fields: [subtopicId], references: [id], onDelete: SetNull)
+
+  attendance StudentAttendance[]
+
+  @@index([batchId, date])
+  @@index([trainerId])
+}
+
+model StudentAttendance {
+  id         String           @id @default(cuid())
+  sessionId  String
+  studentId  String
+  status     AttendanceStatus
+  remarks    String?
+  markedById String
+  markedAt   DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  session  ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student  Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy User         @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}
+
+model AcademySetting {
+  id                  String   @id @default("singleton")
+  lateCountsAsPresent Boolean  @default(true)
+  excusedExcluded     Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}

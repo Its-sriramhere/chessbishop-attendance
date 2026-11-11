@@ -1,0 +1,16 @@
+{
+  "name": "chessbishop-attendance",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ChessBishop smart chess academy management, attendance and analytics system",
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "db:migrate": "npm run db:migrate --prefix server",
+    "db:seed": "npm run db:seed --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
